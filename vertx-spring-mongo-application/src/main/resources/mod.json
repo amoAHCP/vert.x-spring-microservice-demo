@@ -5,5 +5,6 @@
     "description": "A Vert.x / Spring 4 demo application",
     "licenses": ["The Apache Software License Version 2.0"],
     "author": "Andy Moncsek",
-    "includes": "org.jacpfx.vertx.spring~vertx-spring-mod~1.0-SNAPSHOT"
+    "includes": "org.jacpfx.vertx.spring~vertx-spring-mod~1.0-SNAPSHOT",
+    "ping":2000
 }

@@ -5,16 +5,19 @@ import org.jacpfx.vertx.spring.model.Employee;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Repository;
 
 import javax.inject.Inject;
-import java.util.*;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * Created by amo on 09.10.14.
  */
 @Repository
-@Import( { MongoRepositoryConfiguration.class })
+@Import({MongoRepositoryConfiguration.class})
 @Qualifier("EmployeeRepository")
 public class EmployeeRepository {
     @Inject
@@ -22,11 +25,6 @@ public class EmployeeRepository {
 
     private final Class<Employee> entityClass = Employee.class;
 
-
-
-    /*public List<Employee> getAllEmployees() {
-        return Arrays.asList(new Employee("1","software developer", Calendar.getInstance().getTime(),"developer","",""),new Employee("2","software architekt", Calendar.getInstance().getTime(),"architekt","",""));
-    }*/
 
     public void bulkCreateEmployees(List<Employee> employees) {
         mongoTemplate.insert(employees, entityClass);
@@ -39,5 +37,9 @@ public class EmployeeRepository {
             e.printStackTrace();
             return null;
         }
+    }
+
+    public List<Employee> findEmployeeByFirstName(String firstName) {
+        return mongoTemplate.find(new Query(Criteria.where("firstName").regex(firstName)), Employee.class);
     }
 }
