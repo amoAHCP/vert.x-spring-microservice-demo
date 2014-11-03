@@ -1,6 +1,7 @@
 package integration;
 
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
@@ -22,10 +23,23 @@ import java.util.concurrent.TimeUnit;
  */
 public class RestGetTest {
     static final PlatformManager pm = PlatformLocator.factory.createPlatformManager();
-    private  PlatformManager connect(int instances) throws MalformedURLException, InterruptedException {
 
-        final CountDownLatch waitForDeploy = new CountDownLatch(1);
-        pm.deployVerticle("srg.jacpfx.vertx.spring.services.EmployeeVerticleService",
+    @BeforeClass
+    public static void init() {
+        System.setProperty("vertx.langs.spring", "org.jacpfx.vertx.spring~vertx-spring-mod~1.0-SNAPSHOT:org.jacpfx.vertx.spring.SpringVerticleFactory");
+
+    }
+
+    private static PlatformManager connectMain(int instances) throws MalformedURLException, InterruptedException {
+        System.out.println(System.getProperty("vertx.langs.spring"));
+        final CountDownLatch waitForDeploy = new CountDownLatch(2);
+        pm.deployModule("org.jacpfx.vertx.spring~vertx-spring-mongo-application~1.0-SNAPSHOT",
+                null,
+                instances,
+                (event) -> {
+                    if (event.succeeded()) waitForDeploy.countDown();
+                });
+        pm.deployVerticle("spring:org.jacpfx.vertx.spring.services.EmployeeVerticleService",
                 null,
                 new URL[]{new File(".").toURI().toURL()},
                 instances,
@@ -33,10 +47,11 @@ public class RestGetTest {
                 (event) -> {
                     if (event.succeeded()) waitForDeploy.countDown();
                 });
-        waitForDeploy.await(1000, TimeUnit.MILLISECONDS);
+        waitForDeploy.await(10000, TimeUnit.MILLISECONDS);
         return pm;
 
     }
+
     private HttpClient getClient() {
 
         Vertx vertx = VertxFactory.newVertx();
@@ -48,16 +63,18 @@ public class RestGetTest {
         return client;
     }
 
+
+
     @Test
     public  void testSimpleRESTGET() throws InterruptedException, MalformedURLException {
-        //connect(1);
+        connectMain(1);
         CountDownLatch latch = new CountDownLatch(1);
 
 
-        HttpClientRequest request = getClient().get("/testEmployeeOne?name=xyz&lastname=zyx", new Handler<HttpClientResponse>() {
+        HttpClientRequest request = getClient().get("/testEmployeeFour/123/employee/andy", new Handler<HttpClientResponse>() {
             public void handle(HttpClientResponse resp) {
                 resp.bodyHandler(body -> {System.out.println("Got a response: " + body.toString());
-                    Assert.assertEquals(body.toString(), "xyz:zyx");});
+                    Assert.assertEquals(body.toString(), "123:andy");});
 
                 latch.countDown();
             }

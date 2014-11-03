@@ -1,7 +1,5 @@
 package org.jacpfx.vertx.spring.ws;
 
-import org.jacpfx.vertx.spring.SpringVerticle;
-import org.springframework.stereotype.Component;
 import org.vertx.java.core.http.HttpServer;
 import org.vertx.java.core.http.ServerWebSocket;
 import org.vertx.java.platform.Verticle;
@@ -9,8 +7,6 @@ import org.vertx.java.platform.Verticle;
 /**
  * Created by amo on 26.09.14.
  */
-@Component(value = "WSEntryVerticle")
-@SpringVerticle(springConfig = WSEntryVerticle.class)
 public class WSEntryVerticle extends Verticle {
     private final WebSocketRepository repository = new WebSocketRepository();
     public static Integer PORT_NUMER = 8080;

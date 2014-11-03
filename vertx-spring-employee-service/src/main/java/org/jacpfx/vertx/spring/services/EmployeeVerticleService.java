@@ -55,7 +55,7 @@ public class EmployeeVerticleService extends ServiceVerticle {
         message.reply(id+":"+name);
     }
 
-    @Path(path = "/testEmployeeThree/:id/employee/:name", type = Type.REST_GET)
+    @Path(path = "/testEmployeeFour/:id/employee/:name", type = Type.REST_GET)
     public void getTestEmployeeByPathParameterThree(Message message, @PathParam("id") String id,@PathParam("name") String name) {
         message.reply(id+":"+name);
     }

@@ -117,7 +117,8 @@ public abstract class ServiceVerticle extends Verticle {
                 // check only first parameter annotation as only one is allowed
                 final Annotation annotation = parameterAnnotation[0];
 
-                getQueryParameter(parameters, i, annotation, params);
+                putQueryParameter(parameters, i, annotation, params);
+                putPathParameter(parameters, i, annotation, params);
 
 
             } else {
@@ -131,9 +132,15 @@ public abstract class ServiceVerticle extends Verticle {
         return parameters;
     }
 
-    private void getQueryParameter(Object[] parameters, int counter, Annotation annotation, final Parameter<String> params) {
+    private void putQueryParameter(Object[] parameters, int counter, Annotation annotation, final Parameter<String> params) {
         if (QueryParam.class.isAssignableFrom(annotation.getClass())) {
             parameters[counter] = (params.getValue(QueryParam.class.cast(annotation).value()));
+        }
+    }
+
+    private void putPathParameter(Object[] parameters, int counter, Annotation annotation, final Parameter<String> params) {
+        if (PathParam.class.isAssignableFrom(annotation.getClass())) {
+            parameters[counter] = (params.getValue(PathParam.class.cast(annotation).value()));
         }
     }
 
