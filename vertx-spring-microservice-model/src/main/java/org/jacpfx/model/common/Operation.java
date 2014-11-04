@@ -6,12 +6,14 @@ package org.jacpfx.model.common;
 public class Operation {
     private String url;
     private String type;
+    private String[] mime;
     private String[] parameter;
 
-    public Operation(String url, String type, String... param) {
+    public Operation(String url, String type, String[] mime, String... param) {
         this.url = url;
         this.type = type;
         this.parameter = param;
+        this.mime = mime;
     }
 
     public String getUrl() {
@@ -26,15 +28,14 @@ public class Operation {
         return type;
     }
 
-    public void setType(String type) {
-        this.type = type;
-    }
 
     public String[] getParameter() {
         return parameter;
     }
 
-    public void setParameter(String[] parameter) {
-        this.parameter = parameter;
+    public String[] getMime() {
+        return mime;
     }
+
+
 }

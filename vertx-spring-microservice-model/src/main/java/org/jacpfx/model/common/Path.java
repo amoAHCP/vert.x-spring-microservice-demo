@@ -15,4 +15,6 @@ public @interface Path {
     public String path();
 
     public Type type();
+
+    public String mime();
 }

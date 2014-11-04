@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import org.jacpfx.model.common.Parameter;
 import org.jacpfx.model.common.ServiceInfo;
 import org.jacpfx.model.common.Type;
+import org.jacpfx.model.common.TypeTool;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.MultiMap;
@@ -36,30 +37,26 @@ public class RestEntryVerticle extends Verticle {
                     switch (Type.valueOf(type)) {
                         case REST_GET:
                             routeMatcher.get(url, request -> {
-                                request.dataHandler(dhandler->{
-                                    System.out.println("DATA Handler");
-                                });
                                 eventBus.
                                         sendWithTimeout(
                                                 url,
                                                 gson.toJson(getParameterEntity(request.params())),
                                                 10000,
-                                                (Handler<AsyncResult<Message<String>>>) event -> {
+                                                (Handler<AsyncResult<Message<Object>>>) event -> {
+                                                    if(operation.getMime()!=null && operation.getMime().length>1)request.response().putHeader("content-type", operation.getMime()[0]);
                                                     handleRESTEvent(event, request);
                                                 });
                             });
                             break;
                         case REST_POST:
                             routeMatcher.post(url, request -> {
-                                request.dataHandler(dhandler->{
-                                    System.out.println("DATA Handler");
-                                });
                                 eventBus.
                                         sendWithTimeout(
                                                 url,
                                                 gson.toJson(getParameterEntity(request.params())),
                                                 10000,
-                                                (Handler<AsyncResult<Message<String>>>) event -> {
+                                                (Handler<AsyncResult<Message<Object>>>) event -> {
+                                                    if(operation.getMime()!=null && operation.getMime().length>1)request.response().putHeader("content-type", operation.getMime()[0]);
                                                     handleRESTEvent(event, request);
                                                 });
                             });
@@ -77,10 +74,17 @@ public class RestEntryVerticle extends Verticle {
 
     }
 
-    private void handleRESTEvent(AsyncResult<Message<String>> event, HttpServerRequest request) {
-        request.response().putHeader("content-type", "text/json");
+    private void handleRESTEvent(AsyncResult<Message<Object>> event, HttpServerRequest request) {
         if (event.succeeded()) {
-            request.response().end(event.result().body());
+            final Object result = event.result().body();
+            if(result==null) request.response().end();
+            final String stringResult = TypeTool.trySerializeToString(result);
+            if(stringResult!=null) {
+                request.response().end(stringResult);
+            } else {
+                request.response().end();
+            }
+
         } else {
 
             request.response().end("error");
@@ -94,34 +98,18 @@ public class RestEntryVerticle extends Verticle {
         vertx.eventBus().registerHandler(SERVICE_REGISTER_HANDLER, this::serviceRegisterHandler);
 
         HttpServer server = vertx.createHttpServer();
+        routeMatcher.get("/serviceInfo", this::registerInfoHandler);
+        routeMatcher.noMatch(handler->handler.response().end("no route found"));
+        server.requestHandler(routeMatcher).listen(8080, "localhost");
 
-
-        routeMatcher.get("/serviceInfo", request -> {
-            request.response().putHeader("content-type", "text/json");
-            vertx.eventBus().send("services.registry.get", "xyz", (Handler<Message<String>>) h -> {
-                request.response().end(h.body());
-            });
-        });
-
-        server.websocketHandler((serverSocket) -> {
-                    final String path = serverSocket.path();
-                    switch (path) {
-                        case "/all":
-
-                            // reply to first contact
-                            //serverSocket.writeTextFrame("hallo1");
-                            // add handler for further calls
-                            System.out.println("Call");
-                            serverSocket.dataHandler(data -> {
-                                System.out.println("DataHandler");
-                                serverSocket.writeTextFrame("hallo2");
-                            });
-                            break;
-                    }
-                });
-
-                server.requestHandler(routeMatcher).listen(8080, "localhost");
         this.container.deployVerticle("org.jacpfx.vertx.spring.verticle.ServiceRegistry");
+    }
+
+    private void registerInfoHandler(HttpServerRequest request) {
+        request.response().putHeader("content-type", "text/json");
+        vertx.eventBus().send("services.registry.get", "xyz", (Handler<Message<String>>) h -> {
+            request.response().end(h.body());
+        });
     }
 
     private Parameter<String> getParameterEntity(final MultiMap params) {
@@ -131,5 +119,21 @@ public class RestEntryVerticle extends Verticle {
                 map(entry -> new Parameter<>(entry.getKey(), entry.getValue())).
                 collect(Collectors.toList());
         return new Parameter<>(parameters);
+    }
+
+    private void registerWebSocketHandler(HttpServer server) {
+        server.websocketHandler((serverSocket) -> {
+            final String path = serverSocket.path();
+            switch (path) {
+                case "/all":
+
+                    System.out.println("Call");
+                    serverSocket.dataHandler(data -> {
+                        System.out.println("DataHandler");
+                        serverSocket.writeTextFrame("hallo2");
+                    });
+                    break;
+            }
+        });
     }
 }

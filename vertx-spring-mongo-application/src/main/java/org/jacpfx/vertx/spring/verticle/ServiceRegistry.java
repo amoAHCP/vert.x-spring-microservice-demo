@@ -10,7 +10,6 @@ import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 import org.vertx.java.platform.Verticle;
 
-import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -60,7 +59,7 @@ public class ServiceRegistry extends Verticle {
 
 
     private void serviceRegister(Message<String> message) {
-        if(!handlers.containsKey(message.body().toString())) {
+        if (!handlers.containsKey(message.body().toString())) {
             handlers.put(message.body(), System.currentTimeMillis());
             vertx.eventBus().send("services.register.handler", message.body());
             log.info("EventBus registered address: " + message.body());
@@ -70,39 +69,32 @@ public class ServiceRegistry extends Verticle {
     }
 
     private void pingService() {
-        vertx.setPeriodic(ping_time, new Handler<Long>() {
-            @Override
-            public void handle(Long timerID) {
-                long expired = System.currentTimeMillis() - expiration_age;
+        vertx.setPeriodic(ping_time, timerID -> {
+            final long expired = System.currentTimeMillis() - expiration_age;
 
-                Iterator<Map.Entry<String, Long>> it = handlers.entrySet()
-                        .iterator();
-
-                while (it.hasNext()) {
-                    Map.Entry<String, Long> entry = it.next();
-                    if ((entry.getValue() == null)
-                            || (entry.getValue().longValue() < expired)) {
-                        // vertx's SharedMap instances returns a copy internally, so we must remove by hand
-                        final ServiceInfo info = gson.fromJson(entry.getKey(), ServiceInfo.class);
-                        handlers.remove(entry.getKey());
-                        vertx.
-                                eventBus().
-                                sendWithTimeout(
-                                        "/" + info.getServiceName() + "-info",
-                                        "ping",
-                                        1000,
-                                        (Handler<AsyncResult<Message<String>>>) event -> {
-                                            if (event.succeeded()) {
-                                                log.info("ping: " + info.getServiceName());
-                                                handlers.put(event.result().body(), System.currentTimeMillis());
-                                            } else {
-                                                log.info("ping error: " + info.getServiceName());
-                                                // handler.response().end("error");
-                                            }
-                                        });
-                    }
+            handlers.entrySet().stream().forEach(entry -> {
+                if ((entry.getValue() == null)
+                        || (entry.getValue().longValue() < expired)) {
+                    // vertx's SharedMap instances returns a copy internally, so we must remove by hand
+                    final ServiceInfo info = gson.fromJson(entry.getKey(), ServiceInfo.class);
+                    handlers.remove(entry.getKey());
+                    vertx.
+                            eventBus().
+                            sendWithTimeout(
+                                    info.getServiceName() + "-info",
+                                    "ping",
+                                    5000,
+                                    (Handler<AsyncResult<Message<String>>>) event -> {
+                                        if (event.succeeded()) {
+                                            log.info("ping: " + info.getServiceName());
+                                            handlers.put(event.result().body(), System.currentTimeMillis());
+                                        } else {
+                                            log.info("ping error: " + info.getServiceName());
+                                            // handler.response().end("error");
+                                        }
+                                    });
                 }
-            }
+            });
 
         });
     }

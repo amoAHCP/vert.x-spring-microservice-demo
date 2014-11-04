@@ -27,7 +27,7 @@ public class EmployeeService extends Verticle {
 
     private final Gson gson = new Gson();
 
-    private ServiceInfo info =  new ServiceInfo("service-employee",new Operation("/employeeAll", "POST"), new Operation("/employeeByName","POST","name"));
+    private ServiceInfo info =  new ServiceInfo("service-employee",new Operation("/employeeAll", "POST",new String[1]), new Operation("/employeeByName","POST",new String[1]));
 
     @Override
     public void start() {

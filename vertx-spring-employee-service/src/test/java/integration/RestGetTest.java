@@ -39,7 +39,7 @@ public class RestGetTest {
                 (event) -> {
                     if (event.succeeded()) waitForDeploy.countDown();
                 });
-        pm.deployVerticle("spring:org.jacpfx.vertx.spring.services.EmployeeVerticleService",
+        pm.deployVerticle("spring:org.jacpfx.vertx.spring.services.RESTGetVerticleService",
                 null,
                 new URL[]{new File(".").toURI().toURL()},
                 instances,
@@ -66,15 +66,93 @@ public class RestGetTest {
 
 
     @Test
-    public  void testSimpleRESTGET() throws InterruptedException, MalformedURLException {
+    public  void testSimpleRESTGETWithParameterPath() throws InterruptedException, MalformedURLException {
         connectMain(1);
         CountDownLatch latch = new CountDownLatch(1);
 
 
-        HttpClientRequest request = getClient().get("/testEmployeeFour/123/employee/andy", new Handler<HttpClientResponse>() {
+        HttpClientRequest request = getClient().get("/service-REST-GET/testEmployeeFour/123/employee/andy", new Handler<HttpClientResponse>() {
             public void handle(HttpClientResponse resp) {
                 resp.bodyHandler(body -> {System.out.println("Got a response: " + body.toString());
                     Assert.assertEquals(body.toString(), "123:andy");});
+
+                latch.countDown();
+            }
+        });
+
+        request.end();
+        latch.await();
+    }
+
+    @Test
+    public  void testSimpleRESTGETWithParameterPath2() throws InterruptedException, MalformedURLException {
+        connectMain(1);
+        CountDownLatch latch = new CountDownLatch(1);
+
+
+        HttpClientRequest request = getClient().get("/service-REST-GET/testEmployeeThree/456/andy", new Handler<HttpClientResponse>() {
+            public void handle(HttpClientResponse resp) {
+                resp.bodyHandler(body -> {System.out.println("Got a response: " + body.toString());
+                    Assert.assertEquals(body.toString(), "456:andy");});
+
+                latch.countDown();
+            }
+        });
+
+        request.end();
+        latch.await();
+    }
+
+    @Test
+    public  void testSimpleRESTGETWithParameterPathError() throws InterruptedException, MalformedURLException {
+        connectMain(1);
+        CountDownLatch latch = new CountDownLatch(1);
+
+
+        HttpClientRequest request = getClient().get("/service-REST-GET/testEmployeeFour/123/andy", new Handler<HttpClientResponse>() {
+            public void handle(HttpClientResponse resp) {
+                resp.bodyHandler(body -> {System.out.println("Got a response: " + body.toString());
+                    Assert.assertEquals(body.toString(), "no route found");});
+
+                latch.countDown();
+            }
+        });
+
+        request.end();
+        latch.await();
+    }
+
+    @Test
+    public  void testSimpleRESTGETWithQueryParameter() throws InterruptedException, MalformedURLException {
+        connectMain(1);
+        CountDownLatch latch = new CountDownLatch(1);
+
+
+        HttpClientRequest request = getClient().get("/service-REST-GET/testEmployeeOne?name=789&lastname=andy", new Handler<HttpClientResponse>() {
+            public void handle(HttpClientResponse resp) {
+                resp.bodyHandler(body -> {System.out.println("Got a response: " + body.toString());
+                    Assert.assertEquals(body.toString(), "789:andy");});
+
+                latch.countDown();
+            }
+        });
+
+        request.end();
+        latch.await();
+    }
+
+    @Test
+    public  void testSimpleRESTGETWithQueryParameterAndReturnValue() throws InterruptedException, MalformedURLException {
+        connectMain(1);
+        CountDownLatch latch = new CountDownLatch(1);
+
+
+        HttpClientRequest request = getClient().get("/service-REST-GET/testEmployeeTwo?id=123", new Handler<HttpClientResponse>() {
+            public void handle(HttpClientResponse resp) {
+                resp.bodyHandler(body -> {System.out.println("Got a response123: " + body.toString());
+                    Assert.assertEquals(body.toString(), "{\n" +
+                            "  \"id\" : \"123\"\n" +
+                            "}");});
 
                 latch.countDown();
             }
