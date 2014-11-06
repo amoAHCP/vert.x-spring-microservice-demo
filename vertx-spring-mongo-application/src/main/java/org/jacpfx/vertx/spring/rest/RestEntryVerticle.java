@@ -1,8 +1,9 @@
 package org.jacpfx.vertx.spring.rest;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import org.jacpfx.model.common.JSONTool;
 import org.jacpfx.model.common.Parameter;
-import org.jacpfx.model.common.ServiceInfo;
 import org.jacpfx.model.common.Type;
 import org.jacpfx.model.common.TypeTool;
 import org.vertx.java.core.AsyncResult;
@@ -13,27 +14,30 @@ import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.http.HttpServer;
 import org.vertx.java.core.http.HttpServerRequest;
 import org.vertx.java.core.http.RouteMatcher;
+import org.vertx.java.core.json.JsonArray;
+import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.platform.Verticle;
 
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Created by amo on 26.09.14.
  */
 public class RestEntryVerticle extends Verticle {
-    private final Gson gson = new Gson();
+    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     public static final String SERVICE_REGISTER_HANDLER = "services.register.handler";
     public static final String SERVICE_UNREGISTER_HANDLER = "services.unregister.handler";
     private final RouteMatcher routeMatcher = new RouteMatcher();
 
-    private void serviceRegisterHandler(Message<String> message) {
-        final ServiceInfo info = gson.fromJson(message.body(), ServiceInfo.class);
+    private void serviceRegisterHandler(Message<JsonObject> message) {
+        final JsonObject info = message.body();
         final EventBus eventBus = vertx.eventBus();
-        Stream.of(info.getOperations()).forEach(operation -> {
-                    String type = operation.getType();
-                    final String url = operation.getUrl();
+        JSONTool.getObjectListFromArray(info.getArray("operations")).forEach(operation -> {
+
+                    final String type = operation.getString("type");
+                    final String url = operation.getString("url");
+                    final JsonArray mimes = operation.getArray("mime");
                     switch (Type.valueOf(type)) {
                         case REST_GET:
                             routeMatcher.get(url, request -> {
@@ -42,8 +46,9 @@ public class RestEntryVerticle extends Verticle {
                                                 url,
                                                 gson.toJson(getParameterEntity(request.params())),
                                                 10000,
-                                                (Handler<AsyncResult<Message<Object>>>) event -> {
-                                                    if(operation.getMime()!=null && operation.getMime().length>1)request.response().putHeader("content-type", operation.getMime()[0]);
+                                                event -> {
+                                                    if (mimes != null && mimes.toList().size() > 0)
+                                                        request.response().putHeader("content-type", JsonObject.class.cast(mimes.get(0)).encode());
                                                     handleRESTEvent(event, request);
                                                 });
                             });
@@ -55,8 +60,9 @@ public class RestEntryVerticle extends Verticle {
                                                 url,
                                                 gson.toJson(getParameterEntity(request.params())),
                                                 10000,
-                                                (Handler<AsyncResult<Message<Object>>>) event -> {
-                                                    if(operation.getMime()!=null && operation.getMime().length>1)request.response().putHeader("content-type", operation.getMime()[0]);
+                                                event -> {
+                                                    if (mimes != null && mimes.toList().size() > 0)
+                                                        request.response().putHeader("content-type", JsonObject.class.cast(mimes.get(0)).encode());
                                                     handleRESTEvent(event, request);
                                                 });
                             });
@@ -107,8 +113,8 @@ public class RestEntryVerticle extends Verticle {
 
     private void registerInfoHandler(HttpServerRequest request) {
         request.response().putHeader("content-type", "text/json");
-        vertx.eventBus().send("services.registry.get", "xyz", (Handler<Message<String>>) h -> {
-            request.response().end(h.body());
+        vertx.eventBus().send("services.registry.get", "xyz", (Handler<Message<JsonObject>>) h -> {
+            request.response().end(h.body().encodePrettily());
         });
     }
 

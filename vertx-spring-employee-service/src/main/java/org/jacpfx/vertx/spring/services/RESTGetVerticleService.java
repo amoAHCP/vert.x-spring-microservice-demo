@@ -5,6 +5,7 @@ import org.jacpfx.model.common.OperationType;
 import org.jacpfx.model.common.Type;
 import org.jacpfx.vertx.spring.SpringVerticle;
 import org.jacpfx.vertx.spring.configuration.SpringConfiguration;
+import org.jacpfx.vertx.spring.model.Employee;
 import org.jacpfx.vertx.spring.repository.EmployeeRepository;
 import org.springframework.stereotype.Component;
 import org.vertx.java.core.eventbus.Message;
@@ -34,7 +35,6 @@ public class RESTGetVerticleService extends ServiceVerticle {
     }
 
 
-    // TODO implement return objects
     @Path("/testEmployeeTwo")
     @OperationType(Type.REST_GET)
     @Produces("application/json")
@@ -61,6 +61,13 @@ public class RESTGetVerticleService extends ServiceVerticle {
     @OperationType(Type.REST_GET)
     public void getTestEmployeeByPathParameterThree(Message message, @PathParam("id") String id, @PathParam("name") String name) {
         message.reply(id + ":" + name);
+    }
+
+    @Path("/testEmployeeFive")
+    @OperationType(Type.REST_GET)
+    @Produces("application/json")
+    public Employee getTestEmployeeFive(@PathParam("id") String id) {
+        return new Employee("fg","dfg",null,"dfg","fdg","dfg");
     }
 
 

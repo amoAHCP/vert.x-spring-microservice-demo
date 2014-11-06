@@ -1,14 +1,18 @@
 package org.jacpfx.vertx.spring.services;
 
 import com.google.gson.Gson;
-import org.jacpfx.model.common.*;
+import com.google.gson.GsonBuilder;
+import org.jacpfx.model.common.JSONTool;
+import org.jacpfx.model.common.OperationType;
+import org.jacpfx.model.common.Parameter;
+import org.jacpfx.model.common.TypeTool;
 import org.vertx.java.core.eventbus.Message;
+import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.platform.Verticle;
 
 import javax.ws.rs.*;
-import javax.ws.rs.Path;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -23,58 +27,71 @@ import java.util.stream.Stream;
  */
 public abstract class ServiceVerticle extends Verticle {
 
-    private final Gson gson = new Gson();
-    private ServiceInfo info;
-    private static final String HOST_PREFIX="";
+    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    private JsonObject descriptor;
+    private static final String HOST_PREFIX = "";
 
     @Override
     public final void start() {
-        // collest all service operation for descriptor
-        final List<Operation> operations = getAllOperationsInService(this.getClass().getDeclaredMethods());
-        info = new ServiceInfo(serviceName(), operations.toArray(new Operation[operations.size()]));
+        // collect all service operations in service for descriptor
+        descriptor = createInfoObject(getAllOperationsInService(this.getClass().getDeclaredMethods()));
         // register service at service registry
-        vertx.eventBus().send("services.registry.register", gson.toJson(info));
+        vertx.eventBus().send("services.registry.register", descriptor);
         // register info handler
         vertx.eventBus().registerHandler(serviceName() + "-info", this::info);
     }
 
+    private JsonObject createInfoObject(List<JsonObject> operations) {
+        final JsonObject tmp = new JsonObject();
+        final JsonArray operationsArray = new JsonArray();
+        operations.forEach(op -> operationsArray.addObject(op));
+        tmp.putString("serviceName", serviceName());
+        tmp.putArray("operations", operationsArray);
+
+        return tmp;
+    }
+
     /**
      * Scans all method in ServiceVerticle, checks method signature, registers each path and create for each method a operation objects for service information.
+     *
      * @param allMethods methods in serviceVerticle
      * @return a list of all operation in service
      */
-    private List<Operation> getAllOperationsInService(final Method[] allMethods) {
-           return Stream.of(allMethods).
-                   filter(m -> m.isAnnotationPresent(Path.class)).
-                   map(method -> {
-                       final Path path = method.getDeclaredAnnotation(Path.class);
-                       final Produces mime = method.getDeclaredAnnotation(Produces.class);
-                       final OperationType opType = method.getDeclaredAnnotation(OperationType.class);
-                       if (opType == null)
-                           throw new MissingResourceException("missing OperationType ", this.getClass().getName(), "");
-                       final String[] mimeTypes = mime != null ? mime.value() : new String[]{""};
-                       final String url = serviceName().concat(path.value());
-                       final List<String> parameters = getQueryParametersInMethod(method.getParameterAnnotations());
-                       parameters.addAll(getPathParametersInMethod(method.getParameterAnnotations()));
-                       switch (opType.value()) {
-                           case REST_POST:
-                               vertx.eventBus().registerHandler(url, handler -> genericRESTHandler(handler, method));
-                               break;
-                           case REST_GET:
-                               vertx.eventBus().registerHandler(url, handler -> genericRESTHandler(handler, method));
-                               break;
-                           case WEBSOCKET:
-                               break;
-                           case EVENTBUS:
-                               break;
-                       }
+    private List<JsonObject> getAllOperationsInService(final Method[] allMethods) {
+        return Stream.of(allMethods).
+                filter(m -> m.isAnnotationPresent(Path.class)).
+                map(method -> {
+                    final Path path = method.getDeclaredAnnotation(Path.class);
+                    final Produces mime = method.getDeclaredAnnotation(Produces.class);
+                    final OperationType opType = method.getDeclaredAnnotation(OperationType.class);
+                    if (opType == null)
+                        throw new MissingResourceException("missing OperationType ", this.getClass().getName(), "");
+                    final String[] mimeTypes = mime != null ? mime.value() : new String[]{""};
+                    final String url = serviceName().concat(path.value());
+                    final List<String> parameters = getQueryParametersInMethod(method.getParameterAnnotations());
+                    parameters.addAll(getPathParametersInMethod(method.getParameterAnnotations()));
 
-                       return new Operation(url, opType.value().name(), mimeTypes, parameters.toArray(new String[parameters.size()]));
-                   }).collect(Collectors.toList());
+                    switch (opType.value()) {
+                        case REST_POST:
+                            vertx.eventBus().registerHandler(url, handler -> genericRESTHandler(handler, method));
+                            break;
+                        case REST_GET:
+                            vertx.eventBus().registerHandler(url, handler -> genericRESTHandler(handler, method));
+                            break;
+                        case WEBSOCKET:
+                            break;
+                        case EVENTBUS:
+                            break;
+                    }
+
+
+                    return JSONTool.createOperationObject(url, opType.value().name(), mimeTypes, parameters.toArray(new String[parameters.size()]));
+                }).collect(Collectors.toList());
     }
 
     /**
      * Returns all query parameters in a method, this is only for REST methods
+     *
      * @param parameterAnnotations
      * @return a list of QueryParameters in a method
      */
@@ -91,6 +108,7 @@ public abstract class ServiceVerticle extends Verticle {
 
     /**
      * Returns all path parameters in a method, this is only for REST methods
+     *
      * @param parameterAnnotations
      * @return a list of PathParameters in a method
      */
@@ -107,33 +125,37 @@ public abstract class ServiceVerticle extends Verticle {
 
     /**
      * executes a requested Service Method in ServiceVerticle
+     *
      * @param m
      * @param method
      */
     private void genericRESTHandler(Message m, Method method) {
         try {
-            // TODO allow method return values an do atomatic reply ... be aware of type limitation!!
-            Object replyValue = method.invoke(this, invokePatameters(m, method));
-            if(replyValue!=null) {
-                if(TypeTool.isCompatibleRESTReturnType(replyValue)) {
-                   m.reply(replyValue);
+            final Object replyValue = method.invoke(this, invokePatameters(m, method));
+            if (replyValue != null) {
+                if (TypeTool.isCompatibleRESTReturnType(replyValue)) {
+                    m.reply(replyValue);
                 } else {
-                    // TODO try to serialize to REST
+                    m.reply(serializeToJSON(replyValue));
                 }
             }
         } catch (IllegalAccessException e) {
             e.printStackTrace();
-            m.fail(200,e.getMessage());
+            m.fail(200, e.getMessage());
         } catch (InvocationTargetException e) {
             m.fail(200, e.getMessage());
         }
     }
 
+    protected String serializeToJSON(final Object o) {
+        return gson.toJson(o);
+    }
 
 
     /**
      * checks method parameters an request parameters for method invocation
-     * @param m the message
+     *
+     * @param m      the message
      * @param method the service method
      * @return an array with all valid method parameters
      */
@@ -179,17 +201,26 @@ public abstract class ServiceVerticle extends Verticle {
     private void info(Message m) {
         Logger logger = container.logger();
 
-        m.reply(gson.toJson(info));
+        m.reply(getServiceDescriptor());
         logger.info("reply to: " + m.body());
     }
 
-    protected String serviceName(){
-         if(this.getClass().isAnnotationPresent(ApplicationPath.class)) {
-             final JsonObject config = container.config();
-             final String host = config.getString("host-prefix", HOST_PREFIX);
-             final ApplicationPath path = this.getClass().getAnnotation(ApplicationPath.class);
-             return host.length()>1?"/".concat(host).concat("-").concat(path.value()):path.value();
-         }
+
+    public JsonObject getServiceDescriptor() {
+        return this.descriptor;
+    }
+
+    protected String serviceName() {
+        if (this.getClass().isAnnotationPresent(ApplicationPath.class)) {
+            final JsonObject config = getConfig();
+            final String host = config.getString("host-prefix", HOST_PREFIX);
+            final ApplicationPath path = this.getClass().getAnnotation(ApplicationPath.class);
+            return host.length() > 1 ? "/".concat(host).concat("-").concat(path.value()) : path.value();
+        }
         return null;
+    }
+
+    private JsonObject getConfig() {
+        return container != null ? container.config() : new JsonObject();
     }
 }

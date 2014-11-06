@@ -13,7 +13,6 @@ import org.vertx.java.core.logging.Logger;
 import javax.inject.Inject;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 
 /**
@@ -30,7 +29,7 @@ public class EmployeeVerticleService extends ServiceVerticle {
 
     @Path("/employeeAll")
     @OperationType(Type.REST_GET)
-    @Produces("application/json")
+    //@Produces("text/json")
     public void getAll(Message m) {
         Logger logger = container.logger();
         m.reply(gson.toJson(repository.getAllEmployees()));
@@ -40,6 +39,7 @@ public class EmployeeVerticleService extends ServiceVerticle {
 
 
     @Path("/employeeByName")
+   // @Produces("text/json")
     @OperationType(Type.REST_GET)
     public void findByName(@QueryParam("name") String name, @QueryParam("lastname") String lastname, Message message) {
         Logger logger = container.logger();

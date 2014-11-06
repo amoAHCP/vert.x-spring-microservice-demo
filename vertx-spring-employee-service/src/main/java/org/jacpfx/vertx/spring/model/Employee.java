@@ -2,6 +2,7 @@ package org.jacpfx.vertx.spring.model;
 
 
 import javax.persistence.*;
+import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.Date;
 
@@ -10,7 +11,7 @@ import java.util.Date;
  */
 @Entity
 @Table(name="Employee")
-public class Employee {
+public class Employee implements Serializable{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

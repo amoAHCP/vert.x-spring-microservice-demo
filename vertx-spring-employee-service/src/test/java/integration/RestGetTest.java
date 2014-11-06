@@ -161,4 +161,23 @@ public class RestGetTest {
         request.end();
         latch.await();
     }
+
+    @Test
+    public  void testSimpleRESTGETWithQueryParameterAndObjectReturnValue() throws InterruptedException, MalformedURLException {
+        connectMain(1);
+        CountDownLatch latch = new CountDownLatch(1);
+
+
+        HttpClientRequest request = getClient().get("/service-REST-GET/testEmployeeFive?id=123", new Handler<HttpClientResponse>() {
+            public void handle(HttpClientResponse resp) {
+                resp.bodyHandler(body -> {System.out.println("Got a response123: " + body.toString());
+                    Assert.assertEquals(body.toString(), "{\"employeeId\":\"fg\",\"jobDescription\":\"dfg\",\"jobType\":\"dfg\",\"firstName\":\"fdg\",\"lastName\":\"dfg\"}");});
+
+                latch.countDown();
+            }
+        });
+
+        request.end();
+        latch.await();
+    }
 }

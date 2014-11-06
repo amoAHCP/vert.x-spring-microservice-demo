@@ -1,10 +1,9 @@
 package org.jacpfx.vertx.spring.verticle;
 
-import com.google.gson.Gson;
-import org.jacpfx.model.common.ServiceInfo;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.Message;
+import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
@@ -35,7 +34,6 @@ public class ServiceRegistry extends Verticle {
     long ping_time = DEFAULT_PING_TIME;
     long sweep_time = DEFAULT_SWEEP_TIME;
 
-    private final Gson gson = new Gson();
 
     @Override
     public void start() {
@@ -53,14 +51,17 @@ public class ServiceRegistry extends Verticle {
         pingService();
     }
 
-    private void getServicesInfo(Message<String> message) {
-        message.reply(gson.toJson(handlers.keySet()));
+    private void getServicesInfo(Message<JsonObject> message) {
+        final JsonArray all = new JsonArray();
+        handlers.keySet().forEach(handler->all.addObject(new JsonObject(handler)));
+        message.reply(new JsonObject().putArray("services",all));
     }
 
 
-    private void serviceRegister(Message<String> message) {
-        if (!handlers.containsKey(message.body().toString())) {
-            handlers.put(message.body(), System.currentTimeMillis());
+    private void serviceRegister(Message<JsonObject> message) {
+        String encoded = message.body().encode();
+        if (!handlers.containsKey(encoded)) {
+            handlers.put(encoded, System.currentTimeMillis());
             vertx.eventBus().send("services.register.handler", message.body());
             log.info("EventBus registered address: " + message.body());
 
@@ -76,20 +77,21 @@ public class ServiceRegistry extends Verticle {
                 if ((entry.getValue() == null)
                         || (entry.getValue().longValue() < expired)) {
                     // vertx's SharedMap instances returns a copy internally, so we must remove by hand
-                    final ServiceInfo info = gson.fromJson(entry.getKey(), ServiceInfo.class);
+                    final JsonObject info = new JsonObject(entry.getKey());
+                    final String serviceName = info.getString("serviceName");
                     handlers.remove(entry.getKey());
                     vertx.
                             eventBus().
                             sendWithTimeout(
-                                    info.getServiceName() + "-info",
+                                    serviceName + "-info",
                                     "ping",
                                     5000,
-                                    (Handler<AsyncResult<Message<String>>>) event -> {
+                                    (Handler<AsyncResult<Message<JsonObject>>>) event -> {
                                         if (event.succeeded()) {
-                                            log.info("ping: " + info.getServiceName());
-                                            handlers.put(event.result().body(), System.currentTimeMillis());
+                                            log.info("ping: " + serviceName);
+                                            handlers.put(event.result().body().encode(), System.currentTimeMillis());
                                         } else {
-                                            log.info("ping error: " + info.getServiceName());
+                                            log.info("ping error: " + serviceName);
                                             // handler.response().end("error");
                                         }
                                     });
