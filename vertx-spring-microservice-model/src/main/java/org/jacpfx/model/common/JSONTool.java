@@ -14,12 +14,18 @@ public class JSONTool {
 
     public static JsonObject createOperationObject(String url, String type, String[] mime, String... param) {
         final JsonObject result = new JsonObject().putString("url", url).putString("type", type);
-        final JsonArray types = new JsonArray();
-        Stream.of(mime).map(m -> new JsonObject().putString("mime", m)).forEach(jso -> types.addObject(jso));
-        result.putArray("mime", types);
-        final JsonArray params = new JsonArray();
-        Stream.of(param).map(m -> new JsonObject().putString("param", m)).forEach(jso -> params.addObject(jso));
-        result.putArray("param", params);
+        if(mime!=null) {
+            final JsonArray types = new JsonArray();
+            Stream.of(mime).map(m -> new JsonObject().putString("mime", m)).forEach(jso -> types.addObject(jso));
+            result.putArray("mime", types);
+        }
+
+        if(param!=null) {
+            final JsonArray params = new JsonArray();
+            Stream.of(param).map(m -> new JsonObject().putString("param", m)).forEach(jso -> params.addObject(jso));
+            result.putArray("param", params);
+        }
+
         return result;
 
 

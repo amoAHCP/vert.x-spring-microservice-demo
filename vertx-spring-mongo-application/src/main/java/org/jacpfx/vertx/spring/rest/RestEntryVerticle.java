@@ -2,10 +2,7 @@ package org.jacpfx.vertx.spring.rest;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import org.jacpfx.model.common.JSONTool;
-import org.jacpfx.model.common.Parameter;
-import org.jacpfx.model.common.Type;
-import org.jacpfx.model.common.TypeTool;
+import org.jacpfx.model.common.*;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.MultiMap;
@@ -13,12 +10,13 @@ import org.vertx.java.core.eventbus.EventBus;
 import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.http.HttpServer;
 import org.vertx.java.core.http.HttpServerRequest;
-import org.vertx.java.core.http.RouteMatcher;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.platform.Verticle;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -28,7 +26,19 @@ public class RestEntryVerticle extends Verticle {
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     public static final String SERVICE_REGISTER_HANDLER = "services.register.handler";
     public static final String SERVICE_UNREGISTER_HANDLER = "services.unregister.handler";
-    private final RouteMatcher routeMatcher = new RouteMatcher();
+    private final CustomRouteMatcher routeMatcher = new CustomRouteMatcher();
+    private final Set<String> registeredRoutes = new HashSet<>();
+
+    private void serviceUnRegisterHandler(Message<JsonObject> message) {
+        final JsonObject info = message.body();
+        JSONTool.getObjectListFromArray(info.getArray("operations")).forEach(operation -> {
+            final String url = operation.getString("url");
+            if (registeredRoutes.contains(url)) {
+                routeMatcher.removeAll(url);
+                registeredRoutes.remove(url);
+            }
+        });
+    }
 
     private void serviceRegisterHandler(Message<JsonObject> message) {
         final JsonObject info = message.body();
@@ -38,42 +48,47 @@ public class RestEntryVerticle extends Verticle {
                     final String type = operation.getString("type");
                     final String url = operation.getString("url");
                     final JsonArray mimes = operation.getArray("mime");
-                    switch (Type.valueOf(type)) {
-                        case REST_GET:
-                            routeMatcher.get(url, request -> {
-                                eventBus.
-                                        sendWithTimeout(
-                                                url,
-                                                gson.toJson(getParameterEntity(request.params())),
-                                                10000,
-                                                event -> {
-                                                    if (mimes != null && mimes.toList().size() > 0)
-                                                        request.response().putHeader("content-type", JsonObject.class.cast(mimes.get(0)).encode());
-                                                    handleRESTEvent(event, request);
-                                                });
-                            });
-                            break;
-                        case REST_POST:
-                            routeMatcher.post(url, request -> {
-                                eventBus.
-                                        sendWithTimeout(
-                                                url,
-                                                gson.toJson(getParameterEntity(request.params())),
-                                                10000,
-                                                event -> {
-                                                    if (mimes != null && mimes.toList().size() > 0)
-                                                        request.response().putHeader("content-type", JsonObject.class.cast(mimes.get(0)).encode());
-                                                    handleRESTEvent(event, request);
-                                                });
-                            });
-                            break;
-                        case EVENTBUS:
-                            break;
-                        case WEBSOCKET:
-                            break;
-                        default:
+                    if (!registeredRoutes.contains(url)) {
+                        registeredRoutes.add(url);
+
+                        switch (Type.valueOf(type)) {
+                            case REST_GET:
+                                System.out.println("Registered: " + url + " THREAD: " + Thread.currentThread() + "  this:" + this);
+                                routeMatcher.get(url, request -> {
+                                    eventBus.
+                                            sendWithTimeout(
+                                                    url,
+                                                    gson.toJson(getParameterEntity(request.params())),
+                                                    10000,
+                                                    event -> {
+                                                        if (mimes != null && mimes.toList().size() > 0)
+                                                            request.response().putHeader("content-type", JsonObject.class.cast(mimes.get(0)).encode());
+                                                        handleRESTEvent(event, request);
+                                                    });
+                                });
+                                break;
+                            case REST_POST:
+                                routeMatcher.post(url, request -> {
+                                    eventBus.
+                                            sendWithTimeout(
+                                                    url,
+                                                    gson.toJson(getParameterEntity(request.params())),
+                                                    10000,
+                                                    event -> {
+                                                        if (mimes != null && mimes.toList().size() > 0)
+                                                            request.response().putHeader("content-type", JsonObject.class.cast(mimes.get(0)).encode());
+                                                        handleRESTEvent(event, request);
+                                                    });
+                                });
+                                break;
+                            case EVENTBUS:
+                                break;
+                            case WEBSOCKET:
+                                break;
+                            default:
 
 
+                        }
                     }
                 }
         );
@@ -83,9 +98,9 @@ public class RestEntryVerticle extends Verticle {
     private void handleRESTEvent(AsyncResult<Message<Object>> event, HttpServerRequest request) {
         if (event.succeeded()) {
             final Object result = event.result().body();
-            if(result==null) request.response().end();
+            if (result == null) request.response().end();
             final String stringResult = TypeTool.trySerializeToString(result);
-            if(stringResult!=null) {
+            if (stringResult != null) {
                 request.response().end(stringResult);
             } else {
                 request.response().end();
@@ -102,10 +117,11 @@ public class RestEntryVerticle extends Verticle {
         System.out.println("START RestEntryVerticle  THREAD: " + Thread.currentThread() + "  this:" + this);
 
         vertx.eventBus().registerHandler(SERVICE_REGISTER_HANDLER, this::serviceRegisterHandler);
+        vertx.eventBus().registerHandler(SERVICE_UNREGISTER_HANDLER, this::serviceUnRegisterHandler);
 
         HttpServer server = vertx.createHttpServer();
         routeMatcher.get("/serviceInfo", this::registerInfoHandler);
-        routeMatcher.noMatch(handler->handler.response().end("no route found"));
+        routeMatcher.noMatch(handler -> handler.response().end("no route found"));
         server.requestHandler(routeMatcher).listen(8080, "localhost");
 
         this.container.deployVerticle("org.jacpfx.vertx.spring.verticle.ServiceRegistry");

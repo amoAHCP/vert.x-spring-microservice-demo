@@ -85,7 +85,7 @@ public class WSEntryVerticleTest {
 
         assertNotNull(wsTemp[0]);
 
-        //  wsTemp[0].writeTextFrame("");
+        wsTemp[0].writeTextFrame("");
         latch2.await();
 
         client.close();

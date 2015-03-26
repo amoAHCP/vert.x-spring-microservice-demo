@@ -66,7 +66,7 @@ public abstract class ServiceVerticle extends Verticle {
                     final OperationType opType = method.getDeclaredAnnotation(OperationType.class);
                     if (opType == null)
                         throw new MissingResourceException("missing OperationType ", this.getClass().getName(), "");
-                    final String[] mimeTypes = mime != null ? mime.value() : new String[]{""};
+                    final String[] mimeTypes = mime != null ? mime.value() : null;
                     final String url = serviceName().concat(path.value());
                     final List<String> parameters = getQueryParametersInMethod(method.getParameterAnnotations());
                     parameters.addAll(getPathParametersInMethod(method.getParameterAnnotations()));

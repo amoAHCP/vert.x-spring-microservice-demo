@@ -62,12 +62,14 @@ public class ServiceRegistry extends Verticle {
         String encoded = message.body().encode();
         if (!handlers.containsKey(encoded)) {
             handlers.put(encoded, System.currentTimeMillis());
-            vertx.eventBus().send("services.register.handler", message.body());
+            vertx.eventBus().publish("services.register.handler", message.body());
             log.info("EventBus registered address: " + message.body());
 
         }
 
     }
+
+    // TODO add unregister when verticle calls close()
 
     private void pingService() {
         vertx.setPeriodic(ping_time, timerID -> {
@@ -92,7 +94,7 @@ public class ServiceRegistry extends Verticle {
                                             handlers.put(event.result().body().encode(), System.currentTimeMillis());
                                         } else {
                                             log.info("ping error: " + serviceName);
-                                            // handler.response().end("error");
+                                            vertx.eventBus().publish("services.unregister.handler",info);
                                         }
                                     });
                 }
