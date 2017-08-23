@@ -3,8 +3,6 @@ package org.jacpfx.vertx.spring.services;
 import com.google.gson.Gson;
 import org.jacpfx.model.common.OperationType;
 import org.jacpfx.model.common.Type;
-import org.jacpfx.vertx.spring.SpringVerticle;
-import org.jacpfx.vertx.spring.configuration.SpringConfiguration;
 import org.jacpfx.vertx.spring.model.Employee;
 import org.jacpfx.vertx.spring.repository.EmployeeRepository;
 import org.springframework.stereotype.Component;
@@ -18,7 +16,7 @@ import javax.ws.rs.*;
  * Created by amo on 29.10.14.
  */
 @Component(value = "RESTGetVerticleService")
-@SpringVerticle(springConfig = SpringConfiguration.class)
+//@SpringVerticle(springConfig = SpringConfiguration.class)
 @ApplicationPath("/service-REST-GET")
 public class RESTGetVerticleService extends ServiceVerticle {
     @Inject

@@ -8,6 +8,7 @@ import org.fluttercode.datafactory.impl.DataFactory;
 import org.jacpfx.vertx.spring.configuration.MongoDataSourceConfiguration;
 import org.jacpfx.vertx.spring.model.Employee;
 import org.jacpfx.vertx.spring.repository.EmployeeRepository;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.data.mongodb.MongoDbFactory;
@@ -39,6 +40,7 @@ public class CreateDataTest {
         assertTrue(mongoDbFactory.getDb().getMongo().getConnector().isOpen());
     }
     @Test
+    @Ignore
     public void createBulkData() {
         DataFactory df = new DataFactory();
         List<Employee> all = new ArrayList<>();
